@@ -2,6 +2,7 @@ from mpi4py import MPI
 from collections import namedtuple
 from enum import IntEnum
 import threading
+import time
 
 def pp(*args):
     print('{}:'.format(rank), *args)
@@ -27,9 +28,10 @@ clock = LamportClock()
 Message = namedtuple('Message', ['type', 'timestamp', 'name'])
 QueueElement = namedtuple('QueueElement', ['timestamp', 'rank'])
 
-Tag = IntEnum('Tag', 'acquire_request acquire_reply release wait signal')
+Tag = IntEnum('Tag', 'acquire_request acquire_reply release wait signal pop')
 
 mutexes = {}
+conditions = {}
 
 class Mutex:
     def __init__(self, name):
@@ -43,9 +45,9 @@ class Mutex:
         # send acquire message to everyone
         clock.increment()
         message = Message('acquire_request', clock.time, self.name)
-        for i in [r for r in range(size) if r != rank]:
+        for i in set(range(size)) - {rank}:
             comm.send(message, tag=Tag.acquire_request, dest=i)
-            pp('sent request to', i)
+            # pp('sent request to', i)
         # add myself to end of queue
         self.queue.append(QueueElement(message.timestamp, rank))
         self.queue.sort()
@@ -73,7 +75,7 @@ class Mutex:
     def _acquire_wait(self, time):
         with self.acquire_cond:
             while not (self._all_replies(time) and self._is_first()):
-                pp('waiting...', time, self.reply_timestamps, self.queue)
+                # pp('waiting...', time, self.reply_timestamps, self.queue)
                 self.acquire_cond.wait()
             # pp('done waiting!')
         # while not (self._all_replies() and self._is_first()):
@@ -85,54 +87,84 @@ class Mutex:
     def release(self):
         # send release message to everyone
         clock.increment()
-        for i in [r for r in range(size) if r != rank]:
-            comm.send(Message('release', clock.time, self.name), dest=i)
-            pp('sent release to ', i)
+        for i in set(range(size)) - {rank}:
+            comm.send(Message('release', clock.time, self.name), dest=i, tag=Tag.release)
+            # pp('sent release to ', i)
         # remove myself from beginning of queue
         assert self.queue[0].rank == rank
         self.queue.pop(0)
 
 class Condition:
-    def __init__(self, monitor, name):
+    def __init__(self, mutex, name):
         self.queue = []
-        self.mutex = monitor.mutex
+        self.mutex = mutex
         self.name = name
+        self.signal_cond = threading.Condition()
+        conditions[name] = self
 
     def wait(self):
-        # release mutex
         # send wait message to everyone
+        clock.increment()
+        message = Message('wait', clock.time, self.name)
+        for i in set(range(size)) - {rank}:
+            comm.send(message, dest=i, tag=Tag.wait)
+            # pp('sent wait to', i)
+        # release mutex
+        self.mutex.release()
         # blocking recv of signal message
+        # pp('waiting for signal')
+        self._signal_wait()
+        # pp('got signal, waiting for mutex')
         # acquire mutex
-        pass
+        self.mutex.acquire()
 
     def signal(self):
+        if not self.queue:
+            # pp('signal: empty queue')
+            return
         # send signal to first (by timestamp) process in queue
-        pass
+        first = self.queue[0].rank
+        clock.increment()
+        message = Message('signal', clock.time, self.name)
+        comm.send(message, dest=first, tag=Tag.signal)
+        # pp('sent signal to', first)
+        # tell everyone eles to remove that process from queue
+        clock.increment()
+        message = Message('pop', clock.time, self.name)
+        for i in set(range(size)) - {rank, first}:
+            comm.send(message, dest=first, tag=Tag.pop)
+            # pp('sent pop to', i)
+        self.queue.pop()
+
+    def _signal_wait(self):
+        with self.signal_cond:
+            self.signal_cond.wait()
+
 
 def event_loop():
     while True:
         status = MPI.Status()
-        pp('event loop recv...')
+        # pp('event loop recv...')
         message = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
-        pp('done recv')
+        # pp('done recv')
         source = status.Get_source()
-        pp('done get source')
+        # pp('done get source')
         # pp('type: {}'.format(message.type))
         # pp('source: {}'.format(source))
         # pp('received sth: {}'.format(message))
         clock.update(message.timestamp)
-        pp('done clock update')
+        # pp('done clock update')
 
         if message.type == 'acquire_request':
-            pp('received request from', source)
+            # pp('received request from', source)
             mutex = mutexes[message.name]
             mutex.queue.append(QueueElement(message.timestamp, source))
             mutex.queue.sort()
             comm.send(Message('acquire_reply', clock.time, message.name),
                     dest=source)
-            pp('sent reply to ', source)
+            # pp('sent reply to ', source)
         elif message.type == 'acquire_reply':
-            pp('received reply from', source)
+            # pp('received reply from', source)
             mutex = mutexes[message.name]
             # pp('acquiring acquire_cond mutex')
             with mutex.acquire_cond:
@@ -140,7 +172,7 @@ def event_loop():
                 # pp('notifying ', mutex.name)
                 mutex.acquire_cond.notify()
         elif message.type == 'release':
-            pp('received release from', source)
+            # pp('received release from', source)
             mutex = mutexes[message.name]
             # pp('queue: ', mutex.queue)
             # pp('source: ', source)
@@ -153,6 +185,27 @@ def event_loop():
                 mutex.queue = [q for q in mutex.queue if q.rank != source]
                 mutex.queue.sort()
                 mutex.acquire_cond.notify()
+        elif message.type == 'wait':
+            # pp('received wait from', source)
+            condition = conditions[message.name]
+            condition.queue.append(QueueElement(message.timestamp, source))
+            condition.queue.sort()
+        elif message.type == 'signal':
+            # pp('received signal from', source)
+            condition = conditions[message.name]
+            # pp('acquiring signal_cond lock')
+            with condition.signal_cond:
+                # pp('acquired signal_cond lock')
+                condition.signal_cond.notify()
+                # pp('notified')
+            # pp('handled signal')
+        elif message.type == 'pop':
+            # pp('received pop from', source)
+            condition = conditions[message.name]
+            with condition.signal_cond:
+                assert condition.queue[0].rank != rank
+                condition.queue.pop()
+
         elif message.type == 'exit':
             pp(' ||| exiting event loop')
             return
@@ -162,6 +215,7 @@ def event_loop():
 if __name__ == '__main__':
 
     m = Mutex('test')
+    c = Condition(m, 'test')
 
     event_loop_thread = threading.Thread(target=event_loop)
     # event_loop_thread.daemon = True
@@ -170,12 +224,31 @@ if __name__ == '__main__':
 
     seq = [0] * size
 
-    for j in range(2):
+    # pp('mutex test')
+    # for j in range(2):
+    #     m.acquire()
+    #     for i in range(5):
+    #         pp(seq[rank])
+    #         seq[rank] += 1
+    #     m.release()
+
+    pp('cond test')
+    if rank == 0:
         m.acquire()
-        for i in range(5):
-            pp(seq[rank])
-            seq[rank] += 1
+        while True:
+            pp('||| waiting for signal')
+            c.wait()
+            pp('||| got signal!')
         m.release()
+    elif rank == 1:
+        while True:
+            m.acquire()
+            pp('||| working...')
+            time.sleep(2)
+            c.signal()
+            pp('||| sent signal...')
+            m.release()
+
 
     pp(' EXIT ')
     comm.barrier()
