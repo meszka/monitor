@@ -111,14 +111,17 @@ class Condition:
 
 def event_loop():
     while True:
-        # pp('event loop recv...')
         status = MPI.Status()
+        pp('event loop recv...')
         message = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
+        pp('done recv')
         source = status.Get_source()
+        pp('done get source')
         # pp('type: {}'.format(message.type))
         # pp('source: {}'.format(source))
         # pp('received sth: {}'.format(message))
         clock.update(message.timestamp)
+        pp('done clock update')
 
         if message.type == 'acquire_request':
             pp('received request from', source)
@@ -150,10 +153,14 @@ def event_loop():
                 mutex.queue = [q for q in mutex.queue if q.rank != source]
                 mutex.queue.sort()
                 mutex.acquire_cond.notify()
+        elif message.type == 'exit':
+            pp(' ||| exiting event loop')
+            return
         else:
             pp('wat')
 
 if __name__ == '__main__':
+
     m = Mutex('test')
 
     event_loop_thread = threading.Thread(target=event_loop)
@@ -170,8 +177,9 @@ if __name__ == '__main__':
             seq[rank] += 1
         m.release()
 
-    comm.barrier()
-
     pp(' EXIT ')
-
-    # event_loop_thread.join()
+    comm.barrier()
+    pp(' ||| sending exit to event loop')
+    for i in range(size):
+        comm.send(Message('exit', 0, ''), dest=i)
+    # comm.send(Message('exit', 0, ''), dest=rank)
