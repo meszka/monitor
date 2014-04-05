@@ -141,6 +141,7 @@ class Condition:
             self.signal_cond.wait()
 
 
+# TODO: this should be in MonitorBase along with mutexes and conditionals
 def event_loop():
     while True:
         status = MPI.Status()

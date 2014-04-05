@@ -21,6 +21,8 @@ class MonitorMeta(type):
 
 
 class MonitorBase(object, metaclass=MonitorMeta):
+    # TODO: singleton/borg pattern?
+
     def wait(self, condition):
         condition.wait()
 
