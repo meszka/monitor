@@ -1,5 +1,17 @@
 from collections.abc import MutableSequence
 
+def slice_to_tuple(s):
+    if isinstance(s, slice):
+        return (s.start, s.stop, s.step)
+    else:
+        return s
+
+def tuple_to_slice(t):
+    if isinstance(t, tuple):
+        return slice(*t)
+    else:
+        return t
+
 class SharedList(MutableSequence):
     def __init__(self, seq=[]):
         self._list = list(seq)
@@ -12,11 +24,11 @@ class SharedList(MutableSequence):
         return self._list[index]
 
     def __setitem__(self, index, value):
-        self.changes.append(('set', index, value))
+        self.changes.append(('set', slice_to_tuple(index), value))
         self._list[index] = value
 
     def __delitem__(self, index):
-        self.changes.append(('del', index))
+        self.changes.append(('del', slice_to_tuple(index)))
         del self._list[index]
 
     def __str__(self):
@@ -26,17 +38,20 @@ class SharedList(MutableSequence):
         return self.__str__()
 
     def insert(self, index, value):
-        self.changes.append(('insert', index, value))
+        self.changes.append(('insert', slice_to_tuple(index), value))
         self._list.insert(index, value)
 
     def apply_changes(self, changes):
         for change in changes:
             if change[0] == 'set':
-                self._list[change[1]] = change[2]
+                index = tuple_to_slice(change[1])
+                self._list[index] = change[2]
             elif change[0] == 'del':
-                del self._list[change[1]]
+                index = tuple_to_slice(change[1])
+                del self._list[index]
             elif change[0] == 'insert':
-                self._list.insert(change[1], change[2])
+                index = tuple_to_slice(change[1])
+                self._list.insert(index, change[2])
 
     def clear_changes(self):
         del changes[:]
