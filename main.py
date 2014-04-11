@@ -39,21 +39,27 @@ class Mutex:
         self.name = name
         self.reply_timestamps = [-1] * size
         self.acquire_cond = threading.Condition()
+        self.acquire_count = 0
         mutexes[name] = self
 
     def acquire(self):
-        # send acquire message to everyone
-        clock.increment()
-        message = Message('acquire_request', clock.time, self.name)
-        for i in set(range(size)) - {rank}:
-            comm.send(message, tag=Tag.acquire_request, dest=i)
-            # pp('sent request to', i)
-        # add myself to end of queue
-        self.queue.append(QueueElement(message.timestamp, rank))
-        self.queue.sort()
-        # wait for reply from everyone (with timestamp > request timestamp)
-        # and I am first process in queue (according to timestamp)
-        self._acquire_wait(message.timestamp)
+        if self.acquire_count > 0:
+            self.acquire_count += 1
+        else:
+            # send acquire message to everyone
+            clock.increment()
+            message = Message('acquire_request', clock.time, self.name)
+            for i in set(range(size)) - {rank}:
+                comm.send(message, tag=Tag.acquire_request, dest=i)
+                # pp('sent request to', i)
+            # add myself to end of queue
+            self.queue.append(QueueElement(message.timestamp, rank))
+            self.queue.sort()
+            # wait for reply from everyone (with timestamp > request timestamp)
+            # and I am first process in queue (according to timestamp)
+            self._acquire_wait(message.timestamp)
+            self.acquired = True
+            self.acquire_count = 1
 
     def _all_replies(self, time):
         # pp('reply timestamps: ', self.reply_timestamps, 'time: ', time)
@@ -85,14 +91,25 @@ class Mutex:
         #     self.reply_timestamps[message.source] = message.timestamp
 
     def release(self):
-        # send release message to everyone
-        clock.increment()
-        for i in set(range(size)) - {rank}:
-            comm.send(Message('release', clock.time, self.name), dest=i, tag=Tag.release)
-            # pp('sent release to ', i)
-        # remove myself from beginning of queue
-        assert self.queue[0].rank == rank
-        self.queue.pop(0)
+        if self.acquire_count == 0:
+            return
+        self.acquire_count -= 1
+        if self.acquire_count == 0:
+            # send release message to everyone
+            clock.increment()
+            for i in set(range(size)) - {rank}:
+                comm.send(Message('release', clock.time, self.name), dest=i, tag=Tag.release)
+                # pp('sent release to ', i)
+            # remove myself from beginning of queue
+            assert self.queue[0].rank == rank
+            self.queue.pop(0)
+            self.acquire_count -= 1
+
+    def __enter__(self):
+        self.acquire()
+
+    def __exit__(self, *exc):
+        self.release()
 
 class Condition:
     def __init__(self, mutex, name):
@@ -225,30 +242,30 @@ if __name__ == '__main__':
 
     seq = [0] * size
 
-    # pp('mutex test')
-    # for j in range(2):
-    #     m.acquire()
-    #     for i in range(5):
-    #         pp(seq[rank])
-    #         seq[rank] += 1
-    #     m.release()
+    pp('mutex test')
+    with m:
+        for j in range(2):
+            with m:
+                for i in range(5):
+                    pp(seq[rank])
+                    seq[rank] += 1
 
-    pp('cond test')
-    if rank == 0:
-        m.acquire()
-        while True:
-            pp('||| waiting for signal')
-            c.wait()
-            pp('||| got signal!')
-        m.release()
-    elif rank == 1:
-        while True:
-            m.acquire()
-            pp('||| working...')
-            time.sleep(2)
-            c.signal()
-            pp('||| sent signal...')
-            m.release()
+    # pp('cond test')
+    # if rank == 0:
+    #     m.acquire()
+    #     while True:
+    #         pp('||| waiting for signal')
+    #         c.wait()
+    #         pp('||| got signal!')
+    #     m.release()
+    # elif rank == 1:
+    #     while True:
+    #         m.acquire()
+    #         pp('||| working...')
+    #         time.sleep(2)
+    #         c.signal()
+    #         pp('||| sent signal...')
+    #         m.release()
 
 
     pp(' EXIT ')
@@ -257,3 +274,5 @@ if __name__ == '__main__':
     for i in range(size):
         comm.send(Message('exit', 0, ''), dest=i)
     # comm.send(Message('exit', 0, ''), dest=rank)
+
+    event_loop_thread.join()
