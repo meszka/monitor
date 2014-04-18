@@ -60,13 +60,13 @@ class SharedList(MutableSequence):
                 self._list.insert(index, change[2])
 
     def clear_changes(self):
-        del changes[:]
+        del self.changes[:]
 
     def update(self):
         message = Message('update', clock.time, self.name, self.changes)
         for i in set(range(size)) - {rank}:
             comm.send(message, dest=i)
-        self.clear_changes
+        self.clear_changes()
 
 def update_handler(source, message):
     # pp('received update from', source)
