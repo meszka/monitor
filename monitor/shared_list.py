@@ -1,4 +1,6 @@
 from collections.abc import MutableSequence
+from main import Message
+from main import comm, rank, size, clock, pp
 
 def slice_to_tuple(s):
     if isinstance(s, slice):
@@ -12,10 +14,14 @@ def tuple_to_slice(t):
     else:
         return t
 
+variables = {}
+
 class SharedList(MutableSequence):
-    def __init__(self, seq=[]):
+    def __init__(self, name, seq=[]):
         self._list = list(seq)
+        self.name = name
         self.changes = []
+        variables[name] = self
 
     def __len__(self):
         return len(self._list)
@@ -56,9 +62,24 @@ class SharedList(MutableSequence):
     def clear_changes(self):
         del changes[:]
 
-if __name__ == '__main__':
-    s1 = SharedList([1,2,3])
-    s2 = SharedList([1,2,3])
+    def update(self):
+        message = Message('update', clock.time, self.name, self.changes)
+        for i in set(range(size)) - {rank}:
+            comm.send(message, dest=i)
+        self.clear_changes
+
+def update_handler(source, message):
+    # pp('received update from', source)
+    variable = variables[message.name]
+    changes = message.data
+    variable.apply_changes(changes)
+
+variable_hooks = { 'update': update_handler }
+
+
+def test_local():
+    s1 = SharedList('s1', [1,2,3])
+    s2 = SharedList('s2', [1,2,3])
 
     s1.extend([5,6,7])
     s1[2:4] = [0,1]
@@ -70,3 +91,36 @@ if __name__ == '__main__':
     print(s1)
     print(s2)
     assert list(s1) == list(s2)
+
+def test_distributed():
+    import threading
+    import time
+
+    from main import event_loop, send_exit
+    from mutex import Mutex, mutex_hooks
+
+    s = SharedList('s1', [1, 2, 3])
+    m = Mutex('m')
+
+    hooks = {}
+    hooks.update(mutex_hooks)
+    hooks.update(variable_hooks)
+
+    event_loop_thread = threading.Thread(target=event_loop, args=(hooks,))
+    event_loop_thread.start()
+
+    with m:
+        s.pop(0)
+        s.append(5)
+        # pp('appended')
+        s.update()
+        # pp('sent update')
+
+    time.sleep(1)
+
+    if rank == 0:
+        print(s)
+        assert s == [5, 5, 5]
+
+if __name__ == '__main__':
+    test_distributed()

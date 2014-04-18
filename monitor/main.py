@@ -25,7 +25,13 @@ rank = comm.Get_rank()
 size = comm.Get_size()
 clock = LamportClock()
 
-Message = namedtuple('Message', ['type', 'timestamp', 'name'])
+class Message:
+    def __init__(self, type, timestamp, name, data=None):
+        self.type = type
+        self.timestamp = timestamp
+        self.name = name
+        self.data = data
+
 QueueElement = namedtuple('QueueElement', ['timestamp', 'rank'])
 
 Tag = IntEnum('Tag', 'acquire_request acquire_reply release wait signal pop')
