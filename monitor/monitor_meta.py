@@ -70,7 +70,7 @@ class Monitor(MonitorBase):
 if __name__ == '__main__':
     import time
 
-    from monitor.main import event_loop
+    from monitor.main import event_loop, send_exit
     from monitor.mutex import mutex_hooks
     from monitor.shared_variables import variable_hooks
 
@@ -78,13 +78,17 @@ if __name__ == '__main__':
     hooks.update(mutex_hooks)
     hooks.update(variable_hooks)
 
+    m = Monitor()
+
     event_loop_thread = threading.Thread(target=event_loop, args=(hooks,))
     event_loop_thread.start()
 
-    m = Monitor()
     # print(m._mutex)
     # while True:
     #     m.seq()
     m.list_append(5)
     time.sleep(1)
     m.list_print()
+
+    send_exit()
+    event_loop_thread.join()
