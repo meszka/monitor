@@ -1,4 +1,5 @@
-from mpi4py import MPI
+# from mpi4py import MPI
+import zmq_mpi as comm
 from collections import namedtuple
 from enum import IntEnum
 import threading
@@ -20,9 +21,9 @@ class LamportClock:
         with self.lock:
             self.time = max(self.time, other_time) + 1
 
-comm = MPI.COMM_WORLD
-rank = comm.Get_rank()
-size = comm.Get_size()
+# comm = MPI.COMM_WORLD
+rank = comm.rank
+size = comm.size
 clock = LamportClock()
 
 class Message:
@@ -39,11 +40,12 @@ Tag = IntEnum('Tag', 'acquire_request acquire_reply release wait signal pop')
 # TODO: this should be in MonitorBase along with mutexes and conditionals
 def event_loop(hooks={}):
     while True:
-        status = MPI.Status()
+        # status = MPI.Status()
         # pp('event loop recv...')
-        message = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
+        # message = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
+        source, message = comm.recv()
         # pp('done recv')
-        source = status.Get_source()
+        # source = status.Get_source()
         # pp('done get source')
         # pp('type: {}'.format(message.type))
         # pp('source: {}'.format(source))
@@ -64,6 +66,6 @@ def send_exit():
     pp(' EXIT ')
     comm.barrier()
     pp(' ||| sending exit to event loop')
-    for i in range(size):
-        comm.send(Message('exit', 0, ''), dest=i)
-    # comm.send(Message('exit', 0, ''), dest=rank)
+    # for i in range(size):
+    #     comm.send(Message('exit', 0, ''), dest=i)
+    comm.send(Message('exit', 0, ''), dest=rank)
