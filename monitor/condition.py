@@ -1,5 +1,4 @@
 import threading
-from mpi4py import MPI
 
 from monitor.main import Message, QueueElement, Tag
 from monitor.main import comm, rank, size, clock, pp
