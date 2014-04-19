@@ -1,8 +1,8 @@
 import threading
 from mpi4py import MPI
 
-from main import Message, QueueElement, Tag
-from main import comm, rank, size, clock, pp
+from monitor.main import Message, QueueElement, Tag
+from monitor.main import comm, rank, size, clock, pp
 
 mutexes = {}
 
@@ -124,7 +124,7 @@ mutex_hooks = {
 
 
 if __name__ == '__main__':
-    from main import event_loop, send_exit
+    from monitor.main import event_loop, send_exit
 
     m = Mutex('test')
 

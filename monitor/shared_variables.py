@@ -1,6 +1,6 @@
-from collections.abc import MutableSequence
-from main import Message
-from main import comm, rank, size, clock, pp
+from collections.abc import MutableSequence, MutableMapping
+from monitor.main import Message
+from monitor.main import comm, rank, size, clock, pp
 
 def slice_to_tuple(s):
     if isinstance(s, slice):
@@ -135,8 +135,10 @@ def test_distributed():
     import threading
     import time
 
-    from main import event_loop, send_exit
-    from mutex import Mutex, mutex_hooks
+    from monitor.main import event_loop, send_exit
+    from monitor.mutex import Mutex, mutex_hooks
+
+    assert size == 3
 
     s = SharedList('s1', [1, 2, 3])
     m = Mutex('m')

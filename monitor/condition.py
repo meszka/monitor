@@ -1,8 +1,8 @@
 import threading
 from mpi4py import MPI
 
-from main import Message, QueueElement, Tag
-from main import comm, rank, size, clock, pp
+from monitor.main import Message, QueueElement, Tag
+from monitor.main import comm, rank, size, clock, pp
 
 conditions = {}
 
@@ -83,8 +83,8 @@ condition_hooks = {
 if __name__ == '__main__':
     import time
 
-    from main import event_loop, send_exit
-    from mutex import Mutex, mutex_hooks
+    from monitor.main import event_loop, send_exit
+    from monitor.mutex import Mutex, mutex_hooks
 
     m = Mutex('test')
     c = Condition(m, 'test')

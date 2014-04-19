@@ -1,8 +1,8 @@
 from mpi4py import MPI
-from main import *
 import inspect
 import threading
-from mutex import Mutex
+
+from monitor.mutex import Mutex
 
 def method_decorator(method):
     def wrapped(self, *args, **kwargs):
@@ -41,7 +41,7 @@ class MonitorBase(object, metaclass=MonitorMeta):
     def register(self, variables):
         self._variables = variables
 
-from shared_variables import SharedList
+from monitor.shared_variables import SharedList
 
 class Monitor(MonitorBase):
     def __init__(self):
@@ -64,16 +64,16 @@ class Monitor(MonitorBase):
 
     def list_append(self, elem):
         self.s1.append(elem)
-        pp('append')
 
     def list_print(self):
         print(self.s1)
 
 if __name__ == '__main__':
     import time
-    from main import event_loop
-    from mutex import mutex_hooks
-    from shared_variables import variable_hooks
+
+    from monitor.main import event_loop
+    from monitor.mutex import mutex_hooks
+    from monitor.shared_variables import variable_hooks
 
     hooks = {}
     hooks.update(mutex_hooks)
