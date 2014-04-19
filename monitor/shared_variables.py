@@ -206,6 +206,9 @@ def test_shared_dict_distributed():
         print(s, '==', {'a': 3})
         assert s == {'a': 3}
 
+    send_exit()
+    event_loop_thread.join()
+
 if __name__ == '__main__':
     test_shared_list_local()
     test_shared_dict_local()
