@@ -41,7 +41,7 @@ class MonitorBase(object, metaclass=MonitorMeta):
     def register(self, variables):
         self._variables = variables
 
-from shared_list import SharedList
+from shared_variables import SharedList
 
 class Monitor(MonitorBase):
     def __init__(self):
@@ -73,7 +73,7 @@ if __name__ == '__main__':
     import time
     from main import event_loop
     from mutex import mutex_hooks
-    from shared_list import variable_hooks
+    from shared_variables import variable_hooks
 
     hooks = {}
     hooks.update(mutex_hooks)
