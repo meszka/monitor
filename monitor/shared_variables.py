@@ -25,8 +25,8 @@ class SharedVariable:
     def clear_changes(self):
         del self.changes[:]
 
-    def update(self):
-        message = Message('update', clock.time, self.name, self.changes)
+    def sync(self):
+        message = Message('sync', clock.time, self.name, self.changes)
         for i in set(range(size)) - {rank}:
             comm.send(message, dest=i)
         self.clear_changes()
@@ -87,12 +87,12 @@ class SharedDict(SharedVariable, MutableMapping):
         self.changes.append(('set', key, value))
         self._dict[key] = value
 
-    def __delitem__(self):
+    def __delitem__(self, key):
         self.changes.append(('del', key))
         del self._dict[key]
 
     def __iter__(self):
-        iter(self._dict)
+        return iter(self._dict)
 
     def __str__(self):
         return str(self._dict)
@@ -107,31 +107,31 @@ class SharedDict(SharedVariable, MutableMapping):
             elif change[0] == 'del':
                 del self._dict[change[1]]
 
-def update_handler(source, message):
+def sync_handler(source, message):
     # pp('received update from', source)
     variable = variables[message.name]
     changes = message.data
     variable.apply_changes(changes)
 
-variable_hooks = { 'update': update_handler }
+variable_hooks = { 'sync': sync_handler }
 
 
-def test_local():
-    s1 = SharedList('s1', [1,2,3])
-    s2 = SharedList('s2', [1,2,3])
+def test_shared_list_local():
+    if rank == 0:
+        s1 = SharedList('s1', [1,2,3])
+        s2 = SharedList('s2', [1,2,3])
 
-    s1.extend([5,6,7])
-    s1[2:4] = [0,1]
-    s1.insert(0, 8)
-    s1[1] = 2
+        s1.extend([5,6,7])
+        s1[2:4] = [0,1]
+        s1.insert(0, 8)
+        s1[1] = 2
 
-    s2.apply_changes(s1.changes)
+        s2.apply_changes(s1.changes)
 
-    print(s1)
-    print(s2)
-    assert list(s1) == list(s2)
+        print(s1, '==', s2)
+        assert list(s1) == list(s2)
 
-def test_distributed():
+def test_shared_list_distributed():
     import threading
     import time
 
@@ -154,14 +154,60 @@ def test_distributed():
         s.pop(0)
         s.append(5)
         # pp('appended')
-        s.update()
+        s.sync()
         # pp('sent update')
 
     time.sleep(1)
 
     if rank == 0:
-        print(s)
+        print(s, '==', [5,5,5])
         assert s == [5, 5, 5]
 
+def test_shared_dict_local():
+    if rank == 0:
+        s1 = SharedDict('s1', {'a': 1, 'b': 2, 'c': 3})
+        s2 = SharedDict('s2', {'a': 1, 'b': 2, 'c': 3})
+
+        s1.update({'a': 5, 'c': 6})
+        s1['d'] = 7
+        del s1['b']
+
+        s2.apply_changes(s1.changes)
+
+        print(s1, '==', s2)
+        assert dict(s1) == dict(s2)
+
+def test_shared_dict_distributed():
+    import threading
+    import time
+
+    from monitor.main import event_loop, send_exit
+    from monitor.mutex import Mutex, mutex_hooks
+
+    assert size == 3
+
+    s = SharedDict('s1', {'a': 0})
+    m = Mutex('m')
+
+    hooks = {}
+    hooks.update(mutex_hooks)
+    hooks.update(variable_hooks)
+
+    event_loop_thread = threading.Thread(target=event_loop, args=(hooks,))
+    event_loop_thread.start()
+
+    with m:
+        s['a'] += 1
+        s.sync()
+
+    time.sleep(1)
+
+    if rank == 0:
+        print(s, '==', {'a': 3})
+        assert s == {'a': 3}
+
 if __name__ == '__main__':
-    test_distributed()
+    test_shared_list_local()
+    test_shared_dict_local()
+    # test_shared_list_distributed()
+    test_shared_dict_distributed()

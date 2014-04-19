@@ -10,7 +10,7 @@ def method_decorator(method):
         self._mutex.acquire()
         value = method(self, *args, **kwargs)
         for var in self._variables:
-            var.update()
+            var.sync()
         self._mutex.release()
         return value
     return wrapped
