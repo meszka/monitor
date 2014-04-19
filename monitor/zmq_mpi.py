@@ -3,6 +3,7 @@ import zmq
 import threading
 import pickle
 import atexit
+import time
 
 rank = int(sys.argv[1])
 size = int(sys.argv[2])
@@ -28,7 +29,7 @@ def recv(*args, **kwargs):
     return source, message
 
 def barrier():
-    pass
+    time.sleep(1)
 
 def exit():
     # for sock in out_socks.values():
