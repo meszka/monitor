@@ -73,7 +73,7 @@ class SharedList(SharedVariable, MutableSequence):
                 self._list.insert(index, change[2])
 
 class SharedDict(SharedVariable, MutableMapping):
-    def __init__(self, name, mapping):
+    def __init__(self, name, mapping={}):
         self._dict = dict(mapping)
         SharedVariable.__init__(self, name)
 
