@@ -4,10 +4,9 @@ import threading
 import pickle
 import atexit
 
-PORTBASE = 9990
-
 rank = int(sys.argv[1])
 size = int(sys.argv[2])
+PORTBASE = int(sys.argv[3])
 
 context = zmq.Context()
 in_sock = context.socket(zmq.ROUTER)
