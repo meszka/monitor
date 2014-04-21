@@ -2,6 +2,8 @@ import inspect
 import threading
 
 from monitor.mutex import Mutex
+from monitor.shared_variables import SharedList, SharedDict
+from monitor.shared_variables import shared_auto
 
 def method_decorator(method):
     def wrapped(self, *args, **kwargs):
@@ -18,7 +20,7 @@ class MonitorMeta(type):
     def __init__(cls, name, bases, attrs):
         super(MonitorMeta, cls).__init__(name, bases, attrs)
         for name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
-            if name not in ['wait', 'signal', 'register', '__init__', '__new__']:
+            if name not in ['wait', 'signal', 'register', 'shared', '__init__', '__new__']:
                 setattr(cls, name, method_decorator(method))
 
 
@@ -27,8 +29,10 @@ class MonitorBase(object, metaclass=MonitorMeta):
     def __new__(cls, *args, **kwargs):
         obj = super(MonitorBase, cls).__new__(cls, *args, **kwargs)
         cls._monitor_counter += 1
+        cls._variable_counter = 0
         mutex_name = 'mutex-{}-{}'.format(cls.__name__, cls._monitor_counter)
         obj._mutex = Mutex(mutex_name)
+        obj._variables = []
         return obj
 
     def wait(self, condition):
@@ -38,14 +42,20 @@ class MonitorBase(object, metaclass=MonitorMeta):
         condition.signal()
 
     def register(self, variables):
-        self._variables = variables
+        self._variables.extend(variables)
 
-from monitor.shared_variables import SharedList
+    def shared(self, data):
+        self.__class__._variable_counter += 1
+        name = 'variable-{}-{}'.format(self.__class__.__name__, self.__class__._variable_counter)
+        var = shared_auto(name, data)
+        self._variables.append(var)
+        return var
 
 class Monitor(MonitorBase):
     def __init__(self):
-        self.s1 = SharedList('s1', [1,2,3])
-        self.register([self.s1])
+        # self.s1 = SharedList('s1', [1,2,3])
+        # self.register([self.s1])
+        self.s1 = self.shared([1,2,3])
 
     def test(self):
         self.wait("aaa")
