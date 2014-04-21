@@ -1,3 +1,4 @@
+import collections
 from collections.abc import MutableSequence, MutableMapping
 from monitor.main import Message
 from monitor.main import comm, rank, size, clock, pp
@@ -106,6 +107,16 @@ class SharedDict(SharedVariable, MutableMapping):
                 self._dict[change[1]] = change[2]
             elif change[0] == 'del':
                 del self._dict[change[1]]
+
+
+def shared_auto(name, data):
+    if isinstance(data, collections.Sequence):
+        return SharedList(name, data)
+    elif isinstance(data, collections.Mapping):
+        return SharedDict(name, data)
+    else:
+        raise TypeError('Shared variable data must be a sequence or a mapping')
+
 
 def sync_handler(source, message):
     # pp('received update from', source)
