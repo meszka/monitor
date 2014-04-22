@@ -4,6 +4,7 @@ import threading
 from monitor.mutex import Mutex
 from monitor.shared_variables import SharedList, SharedDict
 from monitor.shared_variables import shared_auto
+from monitor.condition import Condition
 
 def method_decorator(method):
     def wrapped(self, *args, **kwargs):
@@ -20,7 +21,8 @@ class MonitorMeta(type):
     def __init__(cls, name, bases, attrs):
         super(MonitorMeta, cls).__init__(name, bases, attrs)
         for name, method in inspect.getmembers(cls, predicate=inspect.isfunction):
-            if name not in ['wait', 'signal', 'register', 'shared', '__init__', '__new__']:
+            if name not in ['wait', 'signal', 'register', 'shared',
+                            'condition', '__init__', '__new__']:
                 setattr(cls, name, method_decorator(method))
 
 
@@ -30,6 +32,7 @@ class MonitorBase(object, metaclass=MonitorMeta):
         obj = super(MonitorBase, cls).__new__(cls, *args, **kwargs)
         cls._monitor_counter += 1
         cls._variable_counter = 0
+        cls._condition_counter = 0
         mutex_name = 'mutex-{}-{}'.format(cls.__name__, cls._monitor_counter)
         obj._mutex = Mutex(mutex_name)
         obj._variables = []
@@ -51,11 +54,18 @@ class MonitorBase(object, metaclass=MonitorMeta):
         self._variables.append(var)
         return var
 
+    def condition(self):
+        self.__class__._condition_counter += 1
+        name = 'condition-{}-{}'.format(self.__class__.__name__, self.__class__._condition_counter)
+        c = Condition(self._mutex, name)
+        return c
+
 class Monitor(MonitorBase):
     def __init__(self):
         # self.s1 = SharedList('s1', [1,2,3])
         # self.register([self.s1])
         self.s1 = self.shared([1,2,3])
+        self.c = self.condition()
 
     def test(self):
         self.wait("aaa")
