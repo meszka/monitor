@@ -43,7 +43,7 @@ class Condition:
         clock.increment()
         message = Message('pop', clock.time, self.name)
         for i in set(range(size)) - {rank, first}:
-            comm.send(message, dest=first, tag=Tag.pop)
+            comm.send(message, dest=i, tag=Tag.pop)
             # pp('sent pop to', i)
         self.queue.pop()
 
