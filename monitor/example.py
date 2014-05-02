@@ -4,7 +4,7 @@ import threading
 
 from monitor.monitor_meta import MonitorBase, hooks
 from monitor.main import event_loop, send_exit
-from monitor.main import rank, pp
+from monitor.main import rank, size, pp
 
 def sleep():
     time.sleep(random.random() * 0.1 + 0.1)
@@ -27,7 +27,7 @@ class Buffer(MonitorBase):
         self.buff.insert(0, element)
         sleep()
         self.not_empty.signal()
-        pass
+        pp('signalled not_empty')
 
     def get(self):
         while not self.buff:
@@ -35,19 +35,26 @@ class Buffer(MonitorBase):
             sleep()
             self.not_empty.wait()
         sleep()
+        # pp('about to pop')
         element = self.buff.pop()
+        # pp('popped')
         sleep()
+        # pp('signalling not_full')
         self.not_full.signal()
+        pp('signalled not_full')
         sleep()
         return element
 
 b1 = Buffer()
-b2 = Buffer()
+# b2 = Buffer()
 
 def producer():
-    for i in range(10):
-        pp('putting in', i)
-        b1.put(i)
+    for i in range(3):
+        pp('putting in', (rank, i))
+        b1.put((rank, i))
+        sleep()
+    pp('DONE')
+    while True:
         sleep()
 
 # def broker():
@@ -76,7 +83,7 @@ event_loop_thread.start()
 #     consumer()
 # elif rank == 4:
 #     consumer()
-if rank == 0:
+if rank != size - 1:
     pp('starting producer')
     producer()
 else:
