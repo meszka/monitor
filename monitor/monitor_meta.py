@@ -1,10 +1,14 @@
 import inspect
 import threading
 
-from monitor.mutex import Mutex
-from monitor.shared_variables import SharedList, SharedDict
-from monitor.shared_variables import shared_auto
-from monitor.condition import Condition
+from monitor.mutex import Mutex, mutex_hooks
+from monitor.condition import Condition, condition_hooks
+from monitor.shared_variables import SharedList, SharedDict, shared_auto, \
+        variable_hooks
+
+hooks = {}
+for h in [mutex_hooks, condition_hooks, variable_hooks]:
+    hooks.update(h)
 
 def method_decorator(method):
     def wrapped(self, *args, **kwargs):
@@ -91,12 +95,6 @@ if __name__ == '__main__':
     import time
 
     from monitor.main import event_loop, send_exit
-    from monitor.mutex import mutex_hooks
-    from monitor.shared_variables import variable_hooks
-
-    hooks = {}
-    hooks.update(mutex_hooks)
-    hooks.update(variable_hooks)
 
     m = Monitor()
 
