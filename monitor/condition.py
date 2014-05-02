@@ -5,6 +5,11 @@ from monitor.main import comm, rank, size, clock, pp
 
 conditions = {}
 
+DEBUG = False
+def debug(*args):
+    if DEBUG:
+        pp('condition:', *args)
+
 class Condition:
     def __init__(self, mutex, name):
         self.queue = []
@@ -19,58 +24,61 @@ class Condition:
         message = Message('wait', clock.time, self.name)
         for i in set(range(size)) - {rank}:
             comm.send(message, dest=i, tag=Tag.wait)
-            # pp('sent wait to', i)
+            debug('sent wait to', i)
         # release mutex
         self.mutex.release()
         # blocking recv of signal message
-        # pp('waiting for signal')
+        debug('waiting for signal')
         self._signal_wait()
-        # pp('got signal, waiting for mutex')
+        debug('got signal, waiting for mutex')
         # acquire mutex
         self.mutex.acquire()
 
     def signal(self):
         if not self.queue:
-            # pp('signal: empty queue')
+            debug('signal: empty queue')
             return
         # send signal to first (by timestamp) process in queue
         first = self.queue[0].rank
         clock.increment()
         message = Message('signal', clock.time, self.name)
         comm.send(message, dest=first, tag=Tag.signal)
-        # pp('sent signal to', first)
-        # tell everyone eles to remove that process from queue
-        clock.increment()
-        message = Message('pop', clock.time, self.name)
-        for i in set(range(size)) - {rank, first}:
-            comm.send(message, dest=i, tag=Tag.pop)
-            # pp('sent pop to', i)
-        self.queue.pop()
+        debug('sent signal to', first)
+        self.queue.pop(0)
 
     def _signal_wait(self):
         with self.signal_cond:
             self.signal_cond.wait()
 
 def wait_handler(source, message):
-    # pp('received wait from', source)
+    debug('received wait from', source)
     condition = conditions[message.name]
     condition.queue.append(QueueElement(message.timestamp, source))
     condition.queue.sort()
 def signal_handler(source, message):
-    # pp('received signal from', source)
+    debug('received signal from', source)
     condition = conditions[message.name]
-    # pp('acquiring signal_cond lock')
+    # tell everyone eles to remove this process from queue
+    clock.increment()
+    message = Message('pop', clock.time, condition.name)
+    for i in set(range(size)) - {rank, source}:
+        comm.send(message, dest=i, tag=Tag.pop)
+        debug('sent pop to', i)
+    debug('acquiring signal_cond lock')
     with condition.signal_cond:
-        # pp('acquired signal_cond lock')
+        debug('acquired signal_cond lock')
         condition.signal_cond.notify()
-        # pp('notified')
-    # pp('handled signal')
+        debug('notified')
+    debug('handled signal')
 def pop_handler(source, message):
-    # pp('received pop from', source)
+    debug('received pop from', source)
     condition = conditions[message.name]
     with condition.signal_cond:
-        assert condition.queue[0].rank != rank
-        condition.queue.pop()
+        if not condition.queue:
+            debug('pop: condition queue empty')
+        else:
+            assert condition.queue[0].rank != rank
+            condition.queue.pop(0)
 
 condition_hooks = {
     'wait': wait_handler,
