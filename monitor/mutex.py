@@ -5,6 +5,11 @@ from monitor.main import comm, rank, size, clock, pp
 
 mutexes = {}
 
+DEBUG = False
+def debug(*args):
+    if DEBUG:
+        pp(args)
+
 class Mutex:
     def __init__(self, name):
         self.queue = []
@@ -23,7 +28,7 @@ class Mutex:
             message = Message('acquire_request', clock.time, self.name)
             for i in set(range(size)) - {rank}:
                 comm.send(message, tag=Tag.acquire_request, dest=i)
-                # pp('sent request to', i)
+                debug('sent request to', i)
             # add myself to end of queue
             self.queue.append(QueueElement(message.timestamp, rank))
             self.queue.sort()
@@ -34,31 +39,31 @@ class Mutex:
             self.acquire_count = 1
 
     def _all_replies(self, time):
-        # pp('reply timestamps: ', self.reply_timestamps, 'time: ', time)
+        # debug('reply timestamps: ', self.reply_timestamps, 'time: ', time)
         timestamps = self.reply_timestamps[:rank] + self.reply_timestamps[rank+1:]
-        # pp(timestamps)
+        # debug(timestamps)
         return all([t > time for t in timestamps])
         # for i in [r for r in range(size) if r != rank]:
         #     if self.reply_timestamps[i] <= time:
-        #         pp('false: ', self.reply_timestamps[i])
+        #         debug('false: ', self.reply_timestamps[i])
         #         return False
-        # pp('true')
+        # debug('true')
         # return True
 
     def _is_first(self):
-        # pp(self.queue)
+        # debug(self.queue)
         return self.queue[0].rank == rank
         # return True
 
     def _acquire_wait(self, time):
         with self.acquire_cond:
             while not (self._all_replies(time) and self._is_first()):
-                # pp('waiting...', time, self.reply_timestamps, self.queue)
+                debug('waiting...', time, self.reply_timestamps, self.queue)
                 self.acquire_cond.wait()
-            # pp('done waiting!')
+            debug('done waiting!')
         # while not (self._all_replies() and self._is_first()):
         #     message = comm.recv(source=MPI.ANY_SOURCE, tag=Tag.acquire_reply)
-        #     pp('received reply from {}', message.source)
+        #     debug('received reply from {}', message.source)
         #     clock.update(message.time)
         #     self.reply_timestamps[message.source] = message.timestamp
 
@@ -71,7 +76,7 @@ class Mutex:
             clock.increment()
             for i in set(range(size)) - {rank}:
                 comm.send(Message('release', clock.time, self.name), dest=i, tag=Tag.release)
-                # pp('sent release to ', i)
+                debug('sent release to ', i)
             # remove myself from beginning of queue
             assert self.queue[0].rank == rank
             self.queue.pop(0)
@@ -85,29 +90,29 @@ class Mutex:
 
 
 def acquire_request_handler(source, message):
-    # pp('received request from', source)
+    debug('received request from', source)
     mutex = mutexes[message.name]
     mutex.queue.append(QueueElement(message.timestamp, source))
     mutex.queue.sort()
     comm.send(Message('acquire_reply', clock.time, message.name),
             dest=source)
-    # pp('sent reply to ', source)
+    debug('sent reply to ', source)
 def acquire_reply_handler(source, message):
-    # pp('received reply from', source)
+    debug('received reply from', source)
     mutex = mutexes[message.name]
-    # pp('acquiring acquire_cond mutex')
+    debug('acquiring acquire_cond mutex')
     with mutex.acquire_cond:
         mutex.reply_timestamps[source] = message.timestamp
-        # pp('notifying ', mutex.name)
+        debug('notifying ', mutex.name)
         mutex.acquire_cond.notify()
 def release_handler(source, message):
-    # pp('received release from', source)
+    debug('received release from', source)
     mutex = mutexes[message.name]
-    # pp('queue: ', mutex.queue)
-    # pp('source: ', source)
+    # debug('queue: ', mutex.queue)
+    # debug('source: ', source)
     with mutex.acquire_cond:
         # if mutex.queue[0].rank != source:
-        #     pp('trying to release: {}, head of queue is: {}'
+        #     debug('trying to release: {}, head of queue is: {}'
         #             .format(source, mutex.queue[0].rank))
         # assert mutex.queue[0].rank == source
         # mutex.queue.pop(0)
