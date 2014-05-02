@@ -32,11 +32,11 @@ class MonitorMeta(type):
 
 class MonitorBase(object, metaclass=MonitorMeta):
     _monitor_counter = 0
+    _variable_counter = 0
+    _condition_counter = 0
     def __new__(cls, *args, **kwargs):
         obj = super(MonitorBase, cls).__new__(cls, *args, **kwargs)
         cls._monitor_counter += 1
-        cls._variable_counter = 0
-        cls._condition_counter = 0
         mutex_name = 'mutex-{}-{}'.format(cls.__name__, cls._monitor_counter)
         obj._mutex = Mutex(mutex_name)
         obj._variables = []
