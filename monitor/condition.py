@@ -77,7 +77,8 @@ def pop_handler(source, message):
         if not condition.queue:
             debug('pop: condition queue empty')
         else:
-            assert condition.queue[0].rank != rank
+            # TODO: can this assertion fail?
+            assert condition.queue[0].rank == source
             condition.queue.pop(0)
 
 condition_hooks = {
