@@ -2,9 +2,9 @@ import time
 import random
 import threading
 
-from monitor.monitor_meta import MonitorBase, hooks
-from monitor.main import event_loop, send_exit
+from monitor.monitor_meta import MonitorBase
 from monitor.main import rank, size, pp
+from monitor.util import event_loop_thread
 
 def sleep():
     time.sleep(random.random() * 0.1 + 0.1)
@@ -46,49 +46,51 @@ class Buffer(MonitorBase):
         return element
 
 b1 = Buffer()
-# b2 = Buffer()
+b2 = Buffer()
+
+MAX = 5
 
 def producer():
-    for i in range(3):
-        pp('putting in', (rank, i))
-        b1.put((rank, i))
+    for i in range(MAX + 1):
+        pp('putting in', i)
+        b1.put(i)
         sleep()
     pp('DONE')
-    while True:
-        sleep()
 
-# def broker():
-#     while True:
-#         e = b1.get()
-#         sleep()
-#         b2.put(e)
-#         sleep()
+def broker():
+    e = None
+    while e != MAX:
+        e = b1.get()
+        sleep()
+        pp('delivering', e)
+        b2.put(e)
+        sleep()
+    pp('DONE')
 
 def consumer():
-    while True:
+    e = None
+    while e != MAX:
         # pp('about to get')
-        pp('got', b1.get())
+        e = b2.get()
+        pp('got', e)
         sleep()
+    pp('DONE')
 
-# TODO: minimize event_loop boilerplate
-pp('starting event loop thread')
-event_loop_thread = threading.Thread(target=event_loop, args=(hooks,))
-event_loop_thread.start()
-
-# if rank == 1:
-#     producer()
-# elif rank == 2:
-#     broker()
-# elif rank == 3:
-#     consumer()
-# elif rank == 4:
-#     consumer()
-if rank != size - 1:
-    pp('starting producer')
-    producer()
-else:
-    pp('starting consumer')
-    consumer()
-
-send_exit()
-event_loop_thread.join()
+with event_loop_thread():
+    # if rank == 1:
+    #     producer()
+    # elif rank == 2:
+    #     broker()
+    # elif rank == 3:
+    #     consumer()
+    # elif rank == 4:
+    #     consumer()
+    if rank == 0:
+        pp('starting producer')
+        producer()
+    elif rank == 1:
+        pp('starting broker')
+        broker()
+    else:
+        pp('starting consumer')
+        consumer()
