@@ -1,9 +1,13 @@
-# from mpi4py import MPI
-import zmq_mpi as comm
 from collections import namedtuple
 from enum import IntEnum
 import threading
 import time
+
+import monitor.config as config
+if config.backend == 'mpi':
+    import monitor.mpi_wrapper as comm
+elif config.backend == 'zmq':
+    import monitor.zmq_mpi as comm
 
 def pp(*args):
     print('{}:'.format(rank), *args)
@@ -21,7 +25,6 @@ class LamportClock:
         with self.lock:
             self.time = max(self.time, other_time) + 1
 
-# comm = MPI.COMM_WORLD
 rank = comm.rank
 size = comm.size
 clock = LamportClock()
