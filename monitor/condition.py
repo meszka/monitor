@@ -29,27 +29,26 @@ class Condition:
         self.mutex.release()
         # blocking recv of signal message
         debug('waiting for signal')
-        self._signal_wait()
+        with self.signal_cond:
+            self.signal_cond.wait()
         debug('got signal, waiting for mutex')
         # acquire mutex
         self.mutex.acquire()
 
     def signal(self):
-        with self.signal_cond:
-            if not self.queue:
-                debug('signal: empty queue')
-                return
-            # send signal to first (by timestamp) process in queue
-            first = self.queue[0].rank
-            clock.increment()
-            message = Message('signal', clock.time, self.name)
-            comm.send(message, dest=first, tag=Tag.signal)
-            debug('sent signal to', first)
-            self.queue.pop(0)
-
-    def _signal_wait(self):
-        with self.signal_cond:
-            self.signal_cond.wait()
+        ## lock unnecessary, because signal can only be called inside
+        ## mutex section, while wait_handler and pop_handler only outside
+        ## mutex section
+        if not self.queue:
+            debug('signal: empty queue')
+            return
+        # send signal to first (by timestamp) process in queue
+        first = self.queue[0].rank
+        clock.increment()
+        message = Message('signal', clock.time, self.name)
+        comm.send(message, dest=first, tag=Tag.signal)
+        debug('sent signal to', first)
+        self.queue.pop(0)
 
 def wait_handler(source, message):
     debug('received wait from', source)
