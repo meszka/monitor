@@ -35,16 +35,17 @@ class Condition:
         self.mutex.acquire()
 
     def signal(self):
-        if not self.queue:
-            debug('signal: empty queue')
-            return
-        # send signal to first (by timestamp) process in queue
-        first = self.queue[0].rank
-        clock.increment()
-        message = Message('signal', clock.time, self.name)
-        comm.send(message, dest=first, tag=Tag.signal)
-        debug('sent signal to', first)
-        self.queue.pop(0)
+        with self.signal_cond:
+            if not self.queue:
+                debug('signal: empty queue')
+                return
+            # send signal to first (by timestamp) process in queue
+            first = self.queue[0].rank
+            clock.increment()
+            message = Message('signal', clock.time, self.name)
+            comm.send(message, dest=first, tag=Tag.signal)
+            debug('sent signal to', first)
+            self.queue.pop(0)
 
     def _signal_wait(self):
         with self.signal_cond:
@@ -53,8 +54,9 @@ class Condition:
 def wait_handler(source, message):
     debug('received wait from', source)
     condition = conditions[message.name]
-    condition.queue.append(QueueElement(message.timestamp, source))
-    condition.queue.sort()
+    with condition.signal_cond:
+        condition.queue.append(QueueElement(message.timestamp, source))
+        condition.queue.sort()
 def signal_handler(source, message):
     debug('received signal from', source)
     condition = conditions[message.name]
