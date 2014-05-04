@@ -30,13 +30,13 @@ class Mutex:
                 comm.send(message, tag=Tag.acquire_request, dest=i)
                 debug('sent request to', i)
             # add myself to end of queue
-            self.queue.append(QueueElement(message.timestamp, rank))
-            self.queue.sort()
-            # wait for reply from everyone (with timestamp > request timestamp)
-            # and I am first process in queue (according to timestamp)
-            self._acquire_wait(message.timestamp)
-            self.acquired = True
-            self.acquire_count = 1
+            with self.acquire_cond:
+                self.queue.append(QueueElement(message.timestamp, rank))
+                self.queue.sort()
+                # wait for reply from everyone (with timestamp > request timestamp)
+                # and I am first process in queue (according to timestamp)
+                self._acquire_wait(message.timestamp)
+                self.acquire_count = 1
 
     def _all_replies(self, time):
         # debug('reply timestamps: ', self.reply_timestamps, 'time: ', time)
@@ -78,9 +78,10 @@ class Mutex:
                 comm.send(Message('release', clock.time, self.name), dest=i, tag=Tag.release)
                 debug('sent release to ', i)
             # remove myself from beginning of queue
-            assert self.queue[0].rank == rank
-            self.queue.pop(0)
-            self.acquire_count -= 1
+            with self.acquire_cond:
+                assert self.queue[0].rank == rank
+                self.queue.pop(0)
+                self.acquire_count -= 1
 
     def __enter__(self):
         self.acquire()
@@ -92,11 +93,12 @@ class Mutex:
 def acquire_request_handler(source, message):
     debug('received request from', source)
     mutex = mutexes[message.name]
-    mutex.queue.append(QueueElement(message.timestamp, source))
-    mutex.queue.sort()
-    comm.send(Message('acquire_reply', clock.time, message.name),
-            dest=source)
-    debug('sent reply to ', source)
+    with mutex.acquire_cond:
+        mutex.queue.append(QueueElement(message.timestamp, source))
+        mutex.queue.sort()
+        comm.send(Message('acquire_reply', clock.time, message.name),
+                dest=source)
+        debug('sent reply to ', source)
 def acquire_reply_handler(source, message):
     debug('received reply from', source)
     mutex = mutexes[message.name]
