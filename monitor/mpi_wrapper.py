@@ -1,3 +1,4 @@
+import time
 from mpi4py import MPI
 
 comm = MPI.COMM_WORLD
@@ -13,4 +14,7 @@ def recv(*args):
     source = status.Get_source()
     return source, message
 
-barrier = comm.barrier
+#barrier = comm.barrier
+def barrier():
+    time.sleep(3)
+    comm.barrier()

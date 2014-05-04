@@ -12,4 +12,5 @@ def event_loop_thread():
     event_loop_thread.start()
     yield
     send_exit()
+    pp('joining event loop thread')
     event_loop_thread.join()
