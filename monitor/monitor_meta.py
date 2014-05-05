@@ -14,6 +14,8 @@ def method_decorator(method):
     def wrapped(self, *args, **kwargs):
         # print(self, *args, **kwargs)
         self._mutex.acquire()
+        for var in self._variables:
+            var.apply_pending_changes()
         value = method(self, *args, **kwargs)
         for var in self._variables:
             var.sync()
@@ -29,6 +31,20 @@ class MonitorMeta(type):
                             'condition', '__init__', '__new__']:
                 setattr(cls, name, method_decorator(method))
 
+class ConditionWrapper:
+    def __init__(self, condition, monitor):
+        self.condition = condition
+        self.monitor = monitor
+
+    def wait(self):
+        for var in self.monitor._variables:
+            var.sync()
+        self.condition.wait()
+        for var in self.monitor._variables:
+            var.apply_pending_changes()
+
+    def signal(self):
+        self.condition.signal()
 
 class MonitorBase(object, metaclass=MonitorMeta):
     _monitor_counter = 0
@@ -61,7 +77,7 @@ class MonitorBase(object, metaclass=MonitorMeta):
     def condition(self):
         self.__class__._condition_counter += 1
         name = 'condition-{}-{}'.format(self.__class__.__name__, self.__class__._condition_counter)
-        c = Condition(self._mutex, name)
+        c = ConditionWrapper(Condition(self._mutex, name), self)
         return c
 
 class Monitor(MonitorBase):
