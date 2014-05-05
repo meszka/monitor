@@ -120,6 +120,10 @@ Zmianna współdzielona posiada metodę ``apply_changes(changes)``, która
 przyjmuje listę zmian i wykonuje kolejno operacje na zmiennej w celu
 synchronizacji stanu. Jej implementacja zależy od rodzaju zmiennej.
 
+Posiada również metodę ``apply_pending_changes()``, która aplikuje zbuforowane
+zmiany (otrzymane od innych procesów) w kolejności wynikającej z ich znaczników
+czasowych.
+
 Do rozgłoszenia zmian służy metoda ``sync()``:
 
 Metoda ``sync()``
@@ -132,7 +136,19 @@ zawiera w sobie listę zmian.
 
 Odbiór wiadomości ``sync``
 --------------------------
-* zastosuj zmiany za pomocą metody ``apply_changes(changes)``
+* dodaj otrzymane zmiany do kolejki ``pending_changes`` (kolejność
+  wynika ze znacznika czasowego)
+
+Metodę ``sync()`` należy wywołać będąc jeszcze w sekcji krytycznej,
+ponieważ inny proces, oczekujący na zajęcie mutexa musi
+otrzymać zmiany przed wejściem do sekcji krytycznej.
+
+Metodę ``apply_pending_changes()`` należy wywołać dopiero po otrzymaniu
+wszystkich wiadomości ``sync`` od procesów, które poprzednio
+modyfikowały zmienną. Pewność co do tego można mieć po zajęciu mutexa,
+ponieważ oznacza to, że otrzymano wszystkie wiadomości ``release`` od
+procesów które mogły modyfikować zmienną, a więc również wszystkie
+wiadomości ``sync`` (proces wysyła ``sync`` przed ``release``).
 
 
 Monitor (moduł ``monitor_meta``)
@@ -149,8 +165,10 @@ przez programistę metody klasy ``Monitor`` z wyjątkiem metody
 metody ``__new__``).
 
 Zmienne warunkowe należy utworzyć w metodzie ``__init__``, korzystając z
-pomocniczej metody ``condition()``. Metoda ta tworzy zmienną warunkową z
-unikalną nazwą.
+pomocniczej metody ``condition()``. Metoda ta tworzy odpowiednio
+opakowaną zmienną warunkową. Opakowanie to jest niezbędne dla
+zapewnienia obsługi zmiennych współdzielonych przed i po wykonaniu metody
+``wait()`` (która wewnętrznie zwalnia oraz zajmuje mutex).
 
 Zmienne współdzielone należy również tworzyć w metodzie ``__init__``,
 korzystając z metody ``shared(data)``. Metoda ta tworzy zmienną
