@@ -1,0 +1,136 @@
+2: starting event loop thread
+2: starting producer
+2: putting in (2, 0)
+2: received wait from 3
+2: received pop from 1
+2: signal: empty queue
+2: received wait from 0
+2: putting in (2, 1)
+2: received pop from 3
+2: waiting on not_full
+2: sent wait to 0
+2: sent wait to 1
+2: sent wait to 3
+2: waiting for signal
+2: received wait from 0
+2: received signal from 3
+2: acquiring signal_cond lock
+2: acquired signal_cond lock
+2: notified
+2: handled signal
+2: got signal, waiting for mutex
+2: waiting on not_full
+2: sent wait to 0
+2: sent wait to 1
+2: sent wait to 3
+2: waiting for signal
+2: received signal from 3
+2: acquiring signal_cond lock
+2: acquired signal_cond lock
+2: notified
+2: handled signal
+2: got signal, waiting for mutex
+2: signal: empty queue
+2: putting in (2, 2)
+2: received signal from 3
+2: acquiring signal_cond lock
+2: acquired signal_cond lock
+2: notified
+2: handled signal
+2: signal: empty queue
+2: DONE
+1: starting event loop thread
+1: starting producer
+1: putting in (1, 0)
+1: received wait from 3
+1: sent signal to 3
+1: sent pop to 0
+1: sent pop to 2
+1: putting in (1, 1)
+1: received wait from 0
+1: received pop from 3
+1: signal: empty queue
+1: received wait from 2
+1: putting in (1, 2)
+1: received wait from 0
+1: received pop from 3
+1: signal: empty queue
+1: received wait from 2
+1: DONE
+1: received pop from 3
+1: received pop from 3
+3: starting event loop thread
+3: starting consumer
+3: waiting on not_empty
+3: sent wait to 0
+3: sent wait to 1
+3: sent wait to 2
+3: waiting for signal
+3: received signal from 1
+3: acquiring signal_cond lock
+3: acquired signal_cond lock
+3: notified
+3: handled signal
+3: got signal, waiting for mutex
+3: received wait from 0
+3: about to pop
+3: popped
+3: signalling not_full
+3: sent signal to 0
+3: sent pop to 1
+3: sent pop to 2
+3: signalled not_full
+3: got (1, 0)
+3: received wait from 2
+3: received wait from 0
+3: about to pop
+3: popped
+3: signalling not_full
+3: sent signal to 2
+3: sent pop to 0
+3: sent pop to 1
+3: signalled not_full
+3: got (2, 0)
+3: received wait from 2
+3: about to pop
+3: popped
+3: signalling not_full
+3: sent signal to 2
+3: sent pop to 0
+3: sent pop to 1
+3: signalled not_full
+3: got (1, 1)
+3: about to pop
+3: popped
+3: signalling not_full
+3: sent signal to 2
+3: sent pop to 0
+3: sent pop to 1
+3: signalled not_full
+3: got (1, 2)
+0: starting event loop thread
+0: starting producer
+0: putting in (0, 0)
+0: received wait from 3
+0: received pop from 1
+0: waiting on not_full
+0: sent wait to 1
+0: sent wait to 2
+0: sent wait to 3
+0: waiting for signal
+0: received signal from 3
+0: acquiring signal_cond lock
+0: acquired signal_cond lock
+0: notified
+0: handled signal
+0: got signal, waiting for mutex
+0: received wait from 2
+0: waiting on not_full
+0: sent wait to 1
+0: sent wait to 2
+0: sent wait to 3
+0: waiting for signal
+0: received pop from 3
+0: received wait from 2
+0: received pop from 3
+0: received pop from 3

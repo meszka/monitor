@@ -42,6 +42,8 @@ Tag = IntEnum('Tag', 'acquire_request acquire_reply release wait signal pop')
 
 # TODO: this should be in MonitorBase along with mutexes and conditionals
 def event_loop(hooks={}):
+    exits = [False] * size
+
     while True:
         # status = MPI.Status()
         # pp('event loop recv...')
@@ -57,8 +59,10 @@ def event_loop(hooks={}):
         # pp('done clock update')
 
         if message.type == 'exit':
-            pp(' ||| exiting event loop')
-            return
+            exits[source] = True
+            if all(exits):
+                pp(' ||| exiting event loop')
+                return
         elif message.type in hooks:
             handler = hooks[message.type]
             handler(source, message)
@@ -66,9 +70,7 @@ def event_loop(hooks={}):
             pp('wat')
 
 def send_exit():
-    pp(' EXIT ')
-    comm.barrier()
-    pp(' ||| sending exit to event loop')
-    # for i in range(size):
-    #     comm.send(Message('exit', 0, ''), dest=i)
-    comm.send(Message('exit', 0, ''), dest=rank)
+    pp(' ||| sending exit to everyone')
+    clock.increment()
+    for i in range(size):
+        comm.send(Message('exit', clock.time, ''), dest=i)

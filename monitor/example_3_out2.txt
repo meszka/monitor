@@ -1,0 +1,110 @@
+0: starting event loop thread
+1: starting event loop thread
+2: starting event loop thread
+0: starting producer
+0: putting in 0
+1: starting consumer
+2: starting consumer
+2: sent request to 0
+1: sent request to 0
+0: sent request to 1
+0: sent request to 2
+2: sent request to 1
+1: sent request to 2
+2: received request from 0
+1: received request from 0
+0: received request from 1
+1: sent reply to  0
+2: sent reply to  0
+0: sent reply to  1
+2: received request from 1
+1: received request from 2
+0: received request from 2
+1: sent reply to  2
+2: sent reply to  1
+0: sent reply to  2
+0: received reply from 2
+2: received reply from 0
+1: received reply from 0
+1: received reply from 2
+0: received reply from 1
+2: received reply from 1
+0: queue of 139679329857208 is now []
+0: signal: empty queue
+0: sent release to  1
+1: received release from 0
+0: sent release to  2
+2: received release from 0
+0: putting in 1
+0: sent request to 1
+1: received request from 0
+0: sent request to 2
+2: received request from 0
+1: sent reply to  0
+0: received reply from 1
+2: sent reply to  0
+0: received reply from 2
+1: queue of 140364981035696 is now []
+1: signal: empty queue
+1: sent release to  0
+1: sent release to  2
+1: got 0
+0: received release from 1
+2: received release from 1
+2: waiting on not_empty
+1: sent request to 0
+0: received request from 1
+1: sent request to 2
+2: received request from 1
+0: sent reply to  1
+2: sent reply to  1
+1: received reply from 0
+1: received reply from 2
+2: sent wait to 0
+0: received wait from 2
+0: queue of 139679329857208 is now [QueueElement(timestamp=12, rank=2)]
+2: sent wait to 1
+1: received wait from 2
+2: sent release to  0
+1: queue of 140364834057912 is now [QueueElement(timestamp=12, rank=2)]
+0: received release from 2
+2: sent release to  1
+2: waiting for signal
+1: received release from 2
+0: queue of 139679329857208 is now [QueueElement(timestamp=12, rank=2)]
+0: sent signal to 2
+2: received signal from 0
+2: acquiring signal_cond lock
+2: acquired signal_cond lock
+0: sent pop to 1
+2: notified
+2: handled signal
+2: got signal, waiting for mutex
+0: sent release to  1
+1: received release from 0
+0: sent release to  2
+2: sent request to 0
+0: received request from 2
+2: sent request to 1
+0: sent reply to  2
+1: received request from 2
+2: received pop from 0
+1: sent reply to  2
+2: queue of 139662827552440 is now []
+0: putting in 2
+0: sent request to 1
+1: received request from 0
+0: sent request to 2
+1: sent reply to  0
+0: received reply from 1
+1: queue of 140364981035696 is now []
+1: signal: empty queue
+1: sent release to  0
+1: sent release to  2
+0: received release from 1
+1: got 1
+1: sent request to 0
+1: sent request to 2
+0: received request from 1
+0: sent reply to  1
+1: received reply from 0
