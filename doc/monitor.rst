@@ -6,16 +6,18 @@ Biblioteka obejmuje 3 niskopoziomowe elementy:
 * rozproszony mutex
 * rozproszona zmienna warunkowa
 * rozproszone zmienne współdzielone
-  - lista (list)
-  - słownik (dictionary)
 
-Dostarcza również klasy bazowej (MonitorBase) umożliwiającą
+  * lista (list)
+  * słownik (dictionary)
+
+Dostarcza również klasy bazowej (``MonitorBase``) umożliwiającą
 implementację monitora. Monitor wykorzystuje elementy wymienione powyżej
 w sposób możliwie transparentny dla programisty.
 
 
 Rozproszony mutex (moduł ``mutex``)
 ===================================
+
 Rozproszony mutex wykorzystuje rozproszony algorytm wzajemnego
 wykluczania Lamporta. Przy każdym wysłaniu oraz odebraniu wiadomości
 aktualizowany jest zegar lamporta (globalny w ramach jednego procesu).
@@ -32,8 +34,9 @@ Metoda ``acquire()``
 * wyślij wiadomość ``acquire_request`` do wszystkich pozostałych procesów
 * dodaj bieżący proces do kolejki (kolejność wynika ze znacznika czasowego)
 * czekaj aż zostaną spełnione 2 warunki:
-  - otrzymano odpowiedzi (nowsze od proścby) od wszystkich pozostałych procesów
-  - bieżący proces jest na początku kolejki
+
+  * otrzymano odpowiedzi (nowsze od prośby) od wszystkich pozostałych procesów
+  * bieżący proces jest na początku kolejki
 
 Metoda ``release()``
 --------------------
