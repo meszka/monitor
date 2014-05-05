@@ -1,6 +1,6 @@
 import threading
 
-from monitor.main import Message, QueueElement, Tag
+from monitor.main import Message, QueueElement
 from monitor.main import comm, rank, size, clock, pp
 
 conditions = {}
@@ -23,7 +23,7 @@ class Condition:
         clock.increment()
         message = Message('wait', clock.time, self.name)
         for i in set(range(size)) - {rank}:
-            comm.send(message, dest=i, tag=Tag.wait)
+            comm.send(message, dest=i)
             debug('sent wait to', i)
         # release mutex
         self.mutex.release()
@@ -46,7 +46,7 @@ class Condition:
         first = self.queue[0].rank
         clock.increment()
         message = Message('signal', clock.time, self.name)
-        comm.send(message, dest=first, tag=Tag.signal)
+        comm.send(message, dest=first)
         debug('sent signal to', first)
         self.queue.pop(0)
 
@@ -63,7 +63,7 @@ def signal_handler(source, message):
     clock.increment()
     message = Message('pop', clock.time, condition.name)
     for i in set(range(size)) - {rank, source}:
-        comm.send(message, dest=i, tag=Tag.pop)
+        comm.send(message, dest=i)
         debug('sent pop to', i)
     debug('acquiring signal_cond lock')
     with condition.signal_cond:

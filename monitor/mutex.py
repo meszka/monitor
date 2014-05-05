@@ -1,6 +1,6 @@
 import threading
 
-from monitor.main import Message, QueueElement, Tag
+from monitor.main import Message, QueueElement
 from monitor.main import comm, rank, size, clock, pp
 
 mutexes = {}
@@ -27,7 +27,7 @@ class Mutex:
             clock.increment()
             message = Message('acquire_request', clock.time, self.name)
             for i in set(range(size)) - {rank}:
-                comm.send(message, tag=Tag.acquire_request, dest=i)
+                comm.send(message, dest=i)
                 debug('sent request to', i)
             # add myself to end of queue
             with self.acquire_cond:
@@ -61,11 +61,6 @@ class Mutex:
                 debug('waiting...', time, self.reply_timestamps, self.queue)
                 self.acquire_cond.wait()
             debug('done waiting!')
-        # while not (self._all_replies() and self._is_first()):
-        #     message = comm.recv(source=MPI.ANY_SOURCE, tag=Tag.acquire_reply)
-        #     debug('received reply from {}', message.source)
-        #     clock.update(message.time)
-        #     self.reply_timestamps[message.source] = message.timestamp
 
     def release(self):
         if self.acquire_count == 0:
@@ -75,7 +70,7 @@ class Mutex:
             # send release message to everyone
             clock.increment()
             for i in set(range(size)) - {rank}:
-                comm.send(Message('release', clock.time, self.name), dest=i, tag=Tag.release)
+                comm.send(Message('release', clock.time, self.name), dest=i)
                 debug('sent release to ', i)
             # remove myself from beginning of queue
             with self.acquire_cond:
@@ -113,11 +108,6 @@ def release_handler(source, message):
     # debug('queue: ', mutex.queue)
     # debug('source: ', source)
     with mutex.acquire_cond:
-        # if mutex.queue[0].rank != source:
-        #     debug('trying to release: {}, head of queue is: {}'
-        #             .format(source, mutex.queue[0].rank))
-        # assert mutex.queue[0].rank == source
-        # mutex.queue.pop(0)
         mutex.queue = [q for q in mutex.queue if q.rank != source]
         mutex.queue.sort()
         mutex.acquire_cond.notify()

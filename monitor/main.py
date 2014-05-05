@@ -1,5 +1,4 @@
 from collections import namedtuple
-from enum import IntEnum
 import threading
 import time
 import sys
@@ -40,25 +39,12 @@ class Message:
 
 QueueElement = namedtuple('QueueElement', ['timestamp', 'rank'])
 
-Tag = IntEnum('Tag', 'acquire_request acquire_reply release wait signal pop')
-
-# TODO: this should be in MonitorBase along with mutexes and conditionals
 def event_loop(hooks={}):
     exits = [False] * size
 
     while True:
-        # status = MPI.Status()
-        # pp('event loop recv...')
-        # message = comm.recv(source=MPI.ANY_SOURCE, tag=MPI.ANY_TAG, status=status)
         source, message = comm.recv()
-        # pp('done recv')
-        # source = status.Get_source()
-        # pp('done get source')
-        # pp('type: {}'.format(message.type))
-        # pp('source: {}'.format(source))
-        # pp('received sth: {}'.format(message))
         clock.update(message.timestamp)
-        # pp('done clock update')
 
         if message.type == 'exit':
             exits[source] = True
