@@ -20,6 +20,7 @@ variables = {}
 class SharedVariable:
     def __init__(self, name):
         self.changes = []
+        self.pending_changes = []
         self.name = name
         variables[name] = self
 
@@ -31,6 +32,11 @@ class SharedVariable:
         for i in set(range(size)) - {rank}:
             comm.send(message, dest=i)
         self.clear_changes()
+
+    def apply_pending_changes(self):
+        for timestamp, changes in self.pending_changes:
+            self.apply_changes(changes)
+        self.pending_changes = []
 
 class SharedList(SharedVariable, MutableSequence):
     def __init__(self, name, seq=[]):
@@ -72,6 +78,7 @@ class SharedList(SharedVariable, MutableSequence):
             elif change[0] == 'insert':
                 index = tuple_to_slice(change[1])
                 self._list.insert(index, change[2])
+
 
 class SharedDict(SharedVariable, MutableMapping):
     def __init__(self, name, mapping={}):
@@ -122,7 +129,9 @@ def sync_handler(source, message):
     # pp('received update from', source)
     variable = variables[message.name]
     changes = message.data
-    variable.apply_changes(changes)
+    timestamp = message.timestamp
+    variable.pending_changes.append((timestamp, changes))
+    variable.pending_changes.sort()
 
 variable_hooks = { 'sync': sync_handler }
 
@@ -149,9 +158,7 @@ def test_shared_list_distributed():
     from monitor.main import event_loop, send_exit
     from monitor.mutex import Mutex, mutex_hooks
 
-    assert size == 3
-
-    s = SharedList('s1', [1, 2, 3])
+    s = SharedList('s1', size * [1])
     m = Mutex('m')
 
     hooks = {}
@@ -162,17 +169,20 @@ def test_shared_list_distributed():
     event_loop_thread.start()
 
     with m:
+        s.apply_pending_changes()
         s.pop(0)
         s.append(5)
         # pp('appended')
         s.sync()
         # pp('sent update')
 
-    time.sleep(1)
+    send_exit()
+    event_loop_thread.join()
 
     if rank == 0:
-        print(s, '==', [5,5,5])
-        assert s == [5, 5, 5]
+        s.apply_pending_changes()
+        print(s, '==', size * [5])
+        assert list(s) == size *[5]
 
 def test_shared_dict_local():
     if rank == 0:
@@ -195,8 +205,6 @@ def test_shared_dict_distributed():
     from monitor.main import event_loop, send_exit
     from monitor.mutex import Mutex, mutex_hooks
 
-    assert size == 3
-
     s = SharedDict('s1', {'a': 0})
     m = Mutex('m')
 
@@ -208,17 +216,17 @@ def test_shared_dict_distributed():
     event_loop_thread.start()
 
     with m:
+        s.apply_pending_changes()
         s['a'] += 1
         s.sync()
 
-    time.sleep(1)
-
-    if rank == 0:
-        print(s, '==', {'a': 3})
-        assert s == {'a': 3}
-
     send_exit()
     event_loop_thread.join()
+
+    if rank == 0:
+        s.apply_pending_changes()
+        print(s, '==', {'a': size})
+        assert dict(s) == {'a': size}
 
 if __name__ == '__main__':
     test_shared_list_local()
