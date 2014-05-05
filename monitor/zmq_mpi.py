@@ -5,6 +5,8 @@ import pickle
 import atexit
 import time
 
+from monitor.zmq_hosts import host_for
+
 rank = int(sys.argv[1])
 size = int(sys.argv[2])
 PORTBASE = int(sys.argv[3])
@@ -14,10 +16,11 @@ in_sock = context.socket(zmq.ROUTER)
 in_sock.bind('tcp://*:{}'.format(PORTBASE + rank))
 
 out_socks = {}
-for i in set(range(size)):
+for i in range(size):
+    host = host_for(i)
     out_sock = context.socket(zmq.DEALER)
     out_sock.setsockopt(zmq.IDENTITY, str(rank).encode())
-    out_sock.connect('tcp://localhost:{}'.format(PORTBASE + i))
+    out_sock.connect('tcp://{}:{}'.format(host, PORTBASE + i))
     out_socks[i] = out_sock
 
 def send(obj, dest, tag=None):

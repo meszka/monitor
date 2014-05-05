@@ -2,6 +2,7 @@ from collections import namedtuple
 from enum import IntEnum
 import threading
 import time
+import sys
 
 import monitor.config as config
 if config.backend == 'mpi':
@@ -11,6 +12,7 @@ elif config.backend == 'zmq':
 
 def pp(*args):
     print('{}:'.format(rank), *args)
+    sys.stdout.flush()
 
 class LamportClock:
     def __init__(self):
