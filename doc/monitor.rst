@@ -24,8 +24,8 @@ aktualizowany jest zegar lamporta (globalny w ramach jednego procesu).
 Znacznik czasowy jest wysyłany razem z wiadomością.
 
 Każdy mutex utrzymuje kolejkę procesów oczekujących na wejście do sekcji
-krytycznej oraz tablicę odpowiedzi (``acquire_reply``) na prośbę
-(``acquire_request``) od poszczególnych procesów.
+krytycznej oraz tablicę odpowiedzi (wiadomości ``acquire_reply``) na prośbę
+(wiadomość ``acquire_request``) od poszczególnych procesów.
 
 Mutex udostępnia 2 metody:
 
@@ -128,7 +128,7 @@ Do rozgłoszenia zmian służy metoda ``sync()``:
 
 Metoda ``sync()``
 -----------------
-* wyślij listę zmian do wszystkich pozostałych procesów
+* wyślij listę zmian do wszystkich pozostałych procesów (wiadomość ``sync``)
 * wyczyść listę zmian
 
 Zmienna współdzielona reaguje na odbiór wiadomości ``sync``, która
