@@ -1,5 +1,8 @@
+import os
+import sys
+
 try:
-    with open('hosts.txt') as f:
+    with open(os.path.join(sys.path[0], 'hosts.txt')) as f:
         hosts = f.read().splitlines()
 except:
     hosts = []
